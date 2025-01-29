@@ -14,7 +14,6 @@ python >= 3.6
 | packages | for |
 | --- | --- |
 | r2pipe | `scripts/bin2asm.py` |
-| click | `scripts/*` |
 | torch | almost all code need it |
 
 You also need to install `radare2` to run `scripts/bin2asm.py`. `r2pipe` is just the python interface to `radare2`

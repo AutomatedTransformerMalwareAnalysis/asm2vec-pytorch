@@ -1,18 +1,11 @@
 import torch
 import torch.nn as nn
-import click
 import asm2vec
 
 def cosine_similarity(v1, v2):
     return (v1 @ v2 / (v1.norm() * v2.norm())).item()
 
-@click.command()
-@click.option('-i1', '--input1', 'ipath1', help='target function 1', required=True)
-@click.option('-i2', '--input2', 'ipath2', help='target function 2', required=True)
-@click.option('-m', '--model', 'mpath', help='model path', required=True)
-@click.option('-e', '--epochs', default=10, help='training epochs', show_default=True)
-@click.option('-c', '--device', default='auto', help='hardware device to be used: cpu / cuda / auto', show_default=True)
-@click.option('-lr', '--learning-rate', 'lr', default=0.02, help="learning rate", show_default=True)
+
 def cli(ipath1, ipath2, mpath, epochs, device, lr):
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
