@@ -103,15 +103,18 @@ def train(
     return model
 
 def save_model(path, model, tokens):
-    torch.save({
-        'model_params': (
-            model.embeddings.num_embeddings,
-            model.embeddings_f.num_embeddings,
-            model.embeddings.embedding_dim
-        ),
-        'model': model.state_dict(),
-        'tokens': tokens.state_dict(),
-    }, path)
+    try:
+        torch.save({
+            'model_params': (
+                model.embeddings.num_embeddings,
+                model.embeddings_f.num_embeddings,
+                model.embeddings.embedding_dim
+            ),
+            'model': model.state_dict(),
+            'tokens': tokens.state_dict(),
+        }, path)
+    except Exception as e:
+        print(f"[ERR] Unable to save embeddings\n{e}")
 
 def load_model(path, device='cpu'):
     checkpoint = torch.load(path, map_location=device)

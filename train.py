@@ -1,28 +1,41 @@
+
+
 import torch
-import asm2vec
+from DataIngest.Asm2Vec import utils
 
 
-def cli(ipath, opath, mpath, limit, embedding_size, batch_size, epochs, neg_sample_num, calc_acc, device, lr):
+def cli(ipath: str,
+        opath: str,
+        mpath: str = None,
+        limit: int = None,
+        embedding_size: int = 100,
+        batch_size: int = 1024,
+        epochs: int = 10,
+        neg_sample_num: int = 25,
+        calc_acc: bool = False,
+        device: str = "auto",
+        lr: float = 0.02):
+    print("[INFO] Training DisASM Embeddings")
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     if mpath:
-        model, tokens = asm2vec.utils.load_model(mpath, device=device)
-        functions, tokens_new = asm2vec.utils.load_data(ipath, limit=limit)
+        model, tokens = utils.load_model(mpath, device=device)
+        functions, tokens_new = utils.load_data(ipath, limit=limit)
         tokens.update(tokens_new)
         model.update(len(functions), tokens.size())
     else:
         model = None
-        functions, tokens = asm2vec.utils.load_data(ipath, limit=limit)
+        functions, tokens = utils.load_data(ipath, limit=limit)
 
     def callback(context):
         progress = f'{context["epoch"]} | time = {context["time"]:.2f}, loss = {context["loss"]:.4f}'
         if context["accuracy"]:
             progress += f', accuracy = {context["accuracy"]:.4f}'
         print(progress)
-        asm2vec.utils.save_model(opath, context["model"], context["tokens"])
+        utils.save_model(opath, context["model"], context["tokens"])
 
-    model = asm2vec.utils.train(
+    model = utils.train(
         functions,
         tokens,
         model=model,
