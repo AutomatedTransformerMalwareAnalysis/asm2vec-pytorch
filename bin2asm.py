@@ -56,8 +56,8 @@ def fn2asm(pdf, minlen):
 
 def bin2asm(filename, opath, minlen):
     # check
-    if not validEXE(filename):
-        return 0
+    #if not validEXE(filename):
+    #    return 0
     
     r = r2pipe.open(str(filename))
     r.cmd('aaaa')
