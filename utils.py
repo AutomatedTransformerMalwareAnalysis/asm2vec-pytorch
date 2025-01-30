@@ -6,6 +6,8 @@ from pathlib import Path
 from .datatype import Tokens, Function, Instruction
 from .model import ASM2VEC
 
+from typing import Tuple, List
+
 class AsmDataset(Dataset):
     def __init__(self, x, y):
         self.x = x
@@ -15,17 +17,15 @@ class AsmDataset(Dataset):
     def __getitem__(self, index):
         return self.x[index], self.y[index]
 
-def load_data(paths, limit=None):
-    if type(paths) is not list:
-        paths = [paths]
-   
+def load_data(targetDir: str, limit=None) -> Tuple[List, Tokens]:
     filenames = []
-    for path in paths:
-        if os.path.isdir(path):
-            filenames += [Path(path) / filename for filename in sorted(os.listdir(path)) if os.path.isfile(Path(path) / filename)]
-        else:
-            filenames += [Path(path)]
+    # Assume inodes in provided directory are directories themselves
+    for inode in os.listdir(targetDir):
+        if os.path.isdir(os.path.join(targetDir, inode)):
+            for file in os.listdir(os.path.join(targetDir, inode)):
+                filenames.append(os.path.join(targetDir, inode, file))
     
+    # Tokenize assembly
     functions, tokens = [], Tokens()
     for i, filename in enumerate(filenames):
         if limit and i >= limit:
