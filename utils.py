@@ -3,7 +3,7 @@ import time
 import torch
 from torch.utils.data import DataLoader, Dataset
 from pathlib import Path
-from .datatype import Tokens, Function, Instruction
+from .DataType import Tokens, Function, Instruction
 from .model import ASM2VEC
 
 from typing import Tuple, List

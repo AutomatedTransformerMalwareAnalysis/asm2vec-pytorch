@@ -40,7 +40,7 @@ class Bin2Asm(object):
                             # Prepare data for writing
                             fhash = hashlib.sha3_256(inode.encode()).hexdigest()
                             uid = hashlib.sha3_256(asm.encode()).hexdigest()
-                            asm = f" .name {fnCall['name']}\n .offset {fnCall['offset']:016x}\n .file{fullPath}\n{asm}"
+                            asm = f" .name {fnCall['name']}\n .offset {fnCall['offset']:016x}\n .file {fullPath}\n{asm}"
                             # Create subdirectory for a given executable
                             if not os.path.exists(os.path.join(self.outputDir, fhash)):
                                 os.mkdir(os.path.join(self.outputDir, fhash))
