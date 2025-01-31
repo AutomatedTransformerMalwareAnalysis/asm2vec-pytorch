@@ -1,8 +1,11 @@
+import argparse
 import hashlib
 import os
+from pathlib import Path
 import r2pipe
 import re
 from tqdm import tqdm
+from typing import Dict
 
 class Bin2Asm(object):
     '''
@@ -20,7 +23,7 @@ class Bin2Asm(object):
     def processDirFiles(self) -> None:
         # Ensure output directory exists
         if not os.path.exists(self.outputDir):
-            os.mkdir(self.outputDir)
+            Path(self.outputDir).mkdir(parents=True, exist_ok=True)
         # Iterate through files in source directory
         for inode in tqdm(os.listdir(self.inputDir)):
             fullPath = os.path.join(self.inputDir, inode)
@@ -34,16 +37,21 @@ class Bin2Asm(object):
                         pipe.cmd(f"s {fnCall['offset']}")
                         asm = self.fnToAsm(pipe.cmdj("pdfj"))
                         if asm:
-                            # Write assembly code to file
+                            # Prepare data for writing
+                            fhash = hashlib.sha3_256(inode.encode()).hexdigest()
                             uid = hashlib.sha3_256(asm.encode()).hexdigest()
                             asm = f" .name {fnCall['name']}\n .offset {fnCall['offset']:016x}\n .file{fullPath}\n{asm}"
-                            with open(os.path.join(self.outputDir, uid), 'w') as asmWrite:
+                            # Create subdirectory for a given executable
+                            if not os.path.exists(os.path.join(self.outputDir, fhash)):
+                                os.mkdir(os.path.join(self.outputDir, fhash))
+                            # Write asm to file
+                            with open(os.path.join(self.outputDir, fhash, uid), 'w') as asmWrite:
                                 asmWrite.write(asm)
                 except Exception as e:
                     print(f"[ERR] Could not disassemble file {inode}\n{e}")
     
 
-    def fnToAsm(self, r2Output) -> str | None:
+    def fnToAsm(self, r2Output: Dict) -> str | None:
         '''
         
         '''
@@ -83,3 +91,28 @@ def normalize(opcode):
     opcode = re.sub(r'\*[0-9]', '*CONST', opcode)
     opcode = re.sub(r' [0-9]', ' CONST', opcode)
     return opcode
+
+# --- Script Code ------------------------------------------------------------------------------------------------------
+def parseArgv() -> argparse.Namespace:
+    '''
+    
+    '''
+    parser = argparse.ArgumentParser(prog="Binary to Assembly Script",
+                                     description="Extract assembly calls from the executables contained within a given directory.",
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("--input",
+                        help="Directory containing executables to be processed.",
+                        type=str,
+                        required=True)
+    parser.add_argument("--output",
+                        help="Destination directory to contain processed function calls.",
+                        type=str,
+                        required=True)
+    return parser.parse_args()
+
+
+# def main(argc, argv):
+if __name__  == "__main__":
+    argv = parseArgv()
+    b2a = Bin2Asm(argv.input, argv.output)
+    b2a.processDirFiles()
