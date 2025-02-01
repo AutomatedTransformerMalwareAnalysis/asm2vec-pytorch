@@ -1,16 +1,21 @@
+import sys
+sys.path += ["DataIngest/Asm2Vec"]
+
 import argparse
 import os
 import time
 import torch
+from torch import nn
+from tqdm import tqdm
 from typing import List, Tuple
 
-from Asm2VecModel import ASM2VEC
-from DataType import Function, Tokens
+from DataIngest.Asm2Vec.Asm2VecModel import ASM2VEC
+from DataIngest.Asm2Vec.DataType import Function, Tokens
 
 
 
 # --- Disassembly Embedding Class --------------------------------------------------------------------------------------
-class DisasmEmbedding(object):
+class DisasmEmbedding(nn.Module):
     '''
     
     '''
@@ -18,6 +23,7 @@ class DisasmEmbedding(object):
         '''
         
         '''
+        super(DisasmEmbedding, self).__init__()
         self.input_dir: str    = input_dir
         self.save_path: str    = save_path
         self.functions: List   = []
@@ -51,14 +57,18 @@ class DisasmEmbedding(object):
         # Load functions and tokens
         self.functions = []
         self.tokens    = Tokens()
-        for i, file in enumerate(file_list):
+        for file in tqdm(file_list):
             with open(file, 'r') as f_in:
                 fn = Function.load(f_in.read())
                 self.functions.append(fn)
                 self.tokens.add(fn.tokens())
+        self.preprocess()
     
 
     def preprocess(self) -> None:
+        '''
+        
+        '''
         x, y = [], []
         for i, fn in enumerate(self.functions):
             for seq in fn.random_walk():
@@ -68,23 +78,22 @@ class DisasmEmbedding(object):
         self.tensors = (torch.tensor(x), torch.tensor(y))
     
 
-    def train(self, callback=None) -> None:
+    def train(self, do_accuracy: bool = True, callback=None) -> None:
         '''
         
         '''
-        self.preprocess()
         # Initialize model
         self.model = ASM2VEC(self.tokens.size(), function_size=len(self.functions), embedding_size=self.embedding_size).to(self.device)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         # Load data
         loader = torch.utils.data.DataLoader(AsmDataset(*self.tensors), batch_size=self.batch_size, shuffle=True)
         # Train model
+        self.model.train()
         for epoch in range(self.epochs):
             print(f"Epoch {epoch + 1}")
             start = time.time()
             loss_sum, loss_count, accs = 0.0, 0, []
 
-            self.model.train()
             for i, (inp, pos) in enumerate(loader):
                 neg = self.tokens.sample(inp.shape[0], self.negative_samples)
                 loss = self.model(inp.to(self.device), pos.to(self.device), neg.to(self.device))
@@ -93,11 +102,9 @@ class DisasmEmbedding(object):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                '''
-                if i == 0 and calc_acc:
-                    probs = model.predict(inp.to(device), pos.to(device))
+                if i == 0 and do_accuracy:
+                    probs = self.model.predict(inp.to(self.device), pos.to(self.device))
                     accs.append(accuracy(pos, probs))
-                '''
 
             if callback:
                 callback({
@@ -108,7 +115,7 @@ class DisasmEmbedding(object):
                     'loss': loss_sum / loss_count,
                     #'accuracy': torch.tensor(accs).mean() if calc_acc else None
                 })
-            print(f"Loss: {loss}")
+            print(f"Loss: {loss} || Accuracy: {torch.tensor(accs).mean()}")
 
 
     def save_model(self) -> None:
@@ -122,8 +129,40 @@ class DisasmEmbedding(object):
                 'model': self.model.state_dict(),
                 'tokens': self.tokens.state_dict(),
             }, self.save_path)
+            print(f"[INFO] Saved embedding model to {self.save_path}")
         except Exception as e:
             print(f"[ERR]Unable to save embedding model\n{e}")
+
+    
+    def load_model(self) -> None:
+        '''
+        
+        '''
+        # Initialize pointer to checkpoint file
+        checkpoint = torch.load(self.save_path, map_location=self.device)
+        # Load tokens
+        self.tokens = Tokens()
+        self.tokens.load_state_dict(checkpoint["tokens"])
+        # Load model
+        self.model = ASM2VEC(*checkpoint["model_params"])
+        self.model.load_state_dict(checkpoint["model"])
+        self.model = self.model.to(self.device)
+    
+
+    def forward(self, input) -> torch.Tensor:
+        '''
+        
+        '''
+        try:
+            ret_tensor = self.model.v(input)
+            return ret_tensor
+        except Exception as e:
+            print(f"[ERR] Unable to vectorize the given input\n{e}")
+
+
+
+def accuracy(y, probs):
+    return torch.mean(torch.tensor([torch.sum(probs[i][yi]) for i, yi in enumerate(y)]))
 
 
 
@@ -146,12 +185,17 @@ def parseArgv() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="Assembly embedding layer training script",
                                      description="Train the embedding layer of the assembly encoder.",
                                      formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--input",
+    parser.add_argument("--mode",
+                        help="Mode of operation for embedding to operate under.",
+                        type=str,
+                        choices=["train", "embed"],
+                        required=True)
+    parser.add_argument("--assembly",
                         help="Directory containing preprocessed assembly files.",
                         type=str,
                         required=True)
-    parser.add_argument("--output",
-                        help="Path to save trained embedding model to.",
+    parser.add_argument("--model",
+                        help="Path associated with model.",
                         type=str,
                         required=True)
     return parser.parse_args()
@@ -160,7 +204,14 @@ def parseArgv() -> argparse.Namespace:
 # def main(argc, argv):
 if __name__  == "__main__":
     argv = parseArgv()
-    disasmEmbed = DisasmEmbedding(argv.input, argv.output)
-    disasmEmbed.load_data()
-    disasmEmbed.train()
-    disasmEmbed.save_model()
+    if(argv.mode == "train"):
+        disasmEmbed = DisasmEmbedding(argv.assembly, argv.model)
+        disasmEmbed.load_data()
+        disasmEmbed.train()
+        disasmEmbed.save_model()
+    elif(argv.mode == "embed"):
+        disasmEmbed = DisasmEmbedding(argv.assembly, argv.model)
+        disasmEmbed.load_model()
+        tens = torch.randint(1, 64, (128, 7))
+        vec = disasmEmbed(tens)
+        print(vec)

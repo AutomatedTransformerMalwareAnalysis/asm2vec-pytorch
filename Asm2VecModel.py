@@ -20,17 +20,26 @@ class ASM2VEC(nn.Module):
             self.embeddings_r = nn.Embedding(vocab_size_new, 2 * embedding_size, _weight=weight_r)
         self.embeddings_f = nn.Embedding(function_size_new, 2 * embedding_size, _weight=((torch.rand(function_size_new, 2 * embedding_size)-0.5)/embedding_size/2).to(device))
 
-    def v(self, inp):
-        e  = self.embeddings(inp[:,1:])
-        v_f = self.embeddings_f(inp[:,0])
+    def v(self, input: torch.Tensor) -> torch.Tensor:
+        e  = self.embeddings(input[:,1:])
+        v_f = self.embeddings_f(input[:,0])
         v_prev = torch.cat([e[:,0], (e[:,1] + e[:,2]) / 2], dim=1)
         v_next = torch.cat([e[:,3], (e[:,4] + e[:,5]) / 2], dim=1)
         v = ((v_f + v_prev + v_next) / 3).unsqueeze(2)
         return v
 
-    def forward(self, inp, pos, neg):
-        device, batch_size = inp.device, inp.shape[0]
-        v = self.v(inp)
+    def forward(self, input: torch.Tensor, pos, neg) -> torch.Tensor:
+        '''
+        Returns the binary cross entropy (BCE) of an input in relation to a target.
+
+        Args:
+            # TODO
+
+        Return:
+            torch.Tensor: PyTorch tensor containing BCE for the given input against a prediction.
+        '''
+        device, batch_size = input.device, input.shape[0]
+        v = self.v(input)
         # negative sampling loss
         pred = torch.bmm(self.embeddings_r(torch.cat([pos, neg], dim=1)), v).squeeze()
         label = torch.cat([torch.ones(batch_size, 3), torch.zeros(batch_size, neg.shape[1])], dim=1).to(device)
