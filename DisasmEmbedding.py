@@ -19,7 +19,14 @@ class DisasmEmbedding(nn.Module):
     '''
     
     '''
-    def __init__(self, input_dir: str, save_path: str) -> None:
+    def __init__(self,
+                 input_dir: str,
+                 save_path: str,
+                 device:         str   = "cpu",
+                 epochs:         int   = 5,
+                 embedding_size: int   = 64,
+                 batch_size:     int   = 128,
+                 learning_rate:  float = 0.02) -> None:
         '''
         
         '''
@@ -31,11 +38,11 @@ class DisasmEmbedding(nn.Module):
 
         self.tensors: Tuple[torch.Tensor, torch.Tensor] = None
 
-        self.device:           str   = "cpu"
-        self.epochs:           int   = 3
-        self.embedding_size:   int   = 64
-        self.batch_size:       int   = 128
-        self.learning_rate:    float = 0.02
+        self.device:           str   = device
+        self.epochs:           int   = epochs
+        self.embedding_size:   int   = embedding_size
+        self.batch_size:       int   = batch_size
+        self.learning_rate:    float = learning_rate
         self.negative_samples: int   = 25
 
         self.model = None
@@ -160,7 +167,6 @@ class DisasmEmbedding(nn.Module):
             print(f"[ERR] Unable to vectorize the given input\n{e}")
 
 
-
 def accuracy(y, probs):
     return torch.mean(torch.tensor([torch.sum(probs[i][yi]) for i, yi in enumerate(y)]))
 
@@ -175,6 +181,7 @@ class AsmDataset(torch.utils.data.Dataset):
         return len(self.x)
     def __getitem__(self, index):
         return self.x[index], self.y[index]
+
 
 
 # --- Script Code ------------------------------------------------------------------------------------------------------
