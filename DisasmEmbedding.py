@@ -57,10 +57,12 @@ class DisasmEmbedding(nn.Module):
         file_list = []
         for inode in os.listdir(self.input_dir):
             subdir = os.path.join(self.input_dir, inode)
-            for file in os.listdir(subdir):
-                file_path = os.path.join(subdir, file)
-                for asm_file in os.listdir(file_path):
-                    file_list.append(os.path.join(file_path, asm_file))
+            for subsubdir in os.listdir(subdir):
+                file_path = os.path.join(subdir, subsubdir)
+                for exe_dir in os.listdir(file_path):
+                    file_path_b = os.path.join(file_path, exe_dir)
+                    for asm_file in os.listdir(file_path_b):
+                        file_list.append(os.path.join(file_path_b, asm_file))
         # Load functions and tokens
         self.functions = []
         self.tokens    = Tokens()
